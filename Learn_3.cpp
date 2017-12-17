@@ -2,7 +2,6 @@
 #include <cmath>
 #include <vector>
 
-
 using namespace std;
 
 typedef float kart;
@@ -30,6 +29,7 @@ vector<komal> weights{
 };
 
 vector<komal> layers{
+	inputs[0],
 	{1},
 	{1}
 };
@@ -48,31 +48,34 @@ int main(){
 	
 	for (int iter=0; iter<1000; iter++){
 		for (int i=0; i<inputs.size(); i++){
-			kart l0 = weights[0][0]*inputs[i][0] + weights[0][1]*inputs[i][1] + weights[0][2];
-			kart l0_act = activate(l0);
-			kart l1 = weights[1][0]*l0_act + weights[1][1];
-			kart l1_act = activate(l1);
+			komal input = inputs[i];
+			komal output = outputs[i];
+			layers[0] = input;
+			for (int l=0; l<layers.size()-1; l++){
+				kart layer = 0;
+				for (int w=0; w<weights[l].size()-1; w++){
+					layer += weights[l][w]*layers[l][w];
+				}
+				layer += weights[l].back();
+				layers[l+1][0] = activate(layer);
+			}
 			
-			kart error = l1_act - outputs[i][0];
-			kart loss = pow(error,2)/2;
-			//cout << "loss:" << loss << endl;
-			
-			kart derror_l1 = error * activate(l1_act, true);
-			kart dl1_dl0 = derror_l1 * activate(l0_act, true);
-			
-			kart delta_w10 = derror_l1*l0_act;
-			kart delta_w11 = derror_l1;
-			
-			kart delta_w00 = dl1_dl0*inputs[i][0];
-			kart delta_w01 = dl1_dl0*inputs[i][1];
-			kart delta_w02 = dl1_dl0;
-			
-			weights[1][0] -= delta_w10 * lr;
-			weights[1][1] -= delta_w11 * lr;
-			
-			weights[0][0] -= delta_w00 * lr;
-			weights[0][1] -= delta_w01 * lr;
-			weights[0][2] -= delta_w02 * lr;
+			kart error = layers.back()[0] - output[0];
+			komal derivs;
+			for (int l=layers.size()-1; l>0; l--){
+				if (l==layers.size()-1){
+					derivs.push_back(error*activate(layers.back()[0], true));
+				}else{
+					derivs.push_back(derivs.back()*activate(layers[l][0],true));
+				}
+				for (int w=0; w<weights[l-1].size(); w++){
+					kart d = derivs[layers.size()-1-l];
+					if (w<weights[l-1].size()-1){
+						d *= layers[l-1][w];
+					}
+					weights[l-1][w] -= d * lr;
+				}
+			}
 		}
 	}
 	
@@ -90,11 +93,3 @@ int main(){
 	
 	return 0;
 }
-
-
-/*
- Started               *
- [1][0][0][0]
- [0.734605][0.154817][0.157705][-0.20075]
- Average error:1.99468% 
-*/
